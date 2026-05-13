@@ -5,9 +5,7 @@ const fs = require('fs')
 const fileClassMap = new Map()
 let classIndex = new Set()
 
-// ─────────────────────────────────────────
-// Парсинг класів з вмісту файлу
-// ─────────────────────────────────────────
+// Parsing classes from file content
 function extractClasses(content) {
    const classes = new Set()
 
@@ -35,9 +33,8 @@ function extractClasses(content) {
    return classes
 }
 
-// ─────────────────────────────────────────
-// Оновлення індексу для одного файлу
-// ─────────────────────────────────────────
+// Updating the index for a single file
+
 async function updateFile(uri) {
    try {
       const content = await fs.promises.readFile(uri.fsPath, 'utf-8')
@@ -69,9 +66,7 @@ function rebuildIndex() {
    }
 }
 
-// ─────────────────────────────────────────
-// Початкова індексація всіх astro файлів
-// ─────────────────────────────────────────
+// Initial indexing of all astro files
 async function scanWorkspace() {
    fileClassMap.clear()
    classIndex.clear()
@@ -81,7 +76,7 @@ async function scanWorkspace() {
       '**/node_modules/**',
    )
 
-   // Читаємо файли паралельно, але чанками по 20 щоб не перевантажити ФС
+   // We read the files in parallel, but in chunks of 20 so as not to overload the file system
    const CHUNK = 20
    for (let i = 0; i < uris.length; i += CHUNK) {
       const chunk = uris.slice(i, i + CHUNK)
@@ -90,8 +85,8 @@ async function scanWorkspace() {
 
    rebuildIndex()
    console.log(
-      `[astro-scss-helper] Проіндексовано ${uris.length} файлів, ` +
-         `знайдено ${classIndex.size} класів`,
+      `[astro-scss-helper] ${uris.length} files indexed, ` +
+         `${classIndex.size} classes found`,
    )
 }
 
@@ -99,20 +94,20 @@ async function scanWorkspace() {
 // Activate
 // ─────────────────────────────────────────
 function activate(context) {
-   console.log('[astro-scss-helper] Активовано')
+   console.log('[astro-scss-helper] Active')
 
-   // Індексуємо при старті
+   // Index on start
    scanWorkspace()
 
-   // Watcher — реагуємо тільки на змінений файл, не перескануємо всі
+   // Watcher — react only on changed file
    const watcher = vscode.workspace.createFileSystemWatcher('**/*.astro')
    watcher.onDidChange((uri) => updateFile(uri))
    watcher.onDidCreate((uri) => updateFile(uri))
    watcher.onDidDelete((uri) => removeFile(uri))
    context.subscriptions.push(watcher)
 
-   // Completion provider для SCSS
-   // Тригер '.' — спрацьовує коли пишеш крапку
+   // Completion provider for SCSS
+   // Trigger '.'
    const provider = vscode.languages.registerCompletionItemProvider(
       ['scss', 'css'],
       {
@@ -120,7 +115,7 @@ function activate(context) {
             const lineText = document.lineAt(position).text
             const charBefore = lineText[position.character - 1]
 
-            // Підказуємо тільки якщо перед курсором є '.' або вже є '.foo'
+            // Only suggest if there is a ‘.’ before the cursor or if ‘.foo’ is already present
             if (
                charBefore !== '.' &&
                !/^\s*\.[a-z0-9_-]*$/i.test(
@@ -130,18 +125,27 @@ function activate(context) {
                return undefined
             }
 
+            // Find the start of the current word containing a period
+            // For example: “   .fie|ld” → the range from the position of the period to the cursor
+            const linePrefix = lineText.slice(0, position.character)
+            const dotIndex = linePrefix.lastIndexOf('.')
+            const replaceStart = new vscode.Position(position.line, dotIndex)
+            const replaceEnd = position
+
             return [...classIndex].map((cls) => {
                const item = new vscode.CompletionItem(
                   `.${cls}`,
                   vscode.CompletionItemKind.Value,
                )
-               // insertText без крапки — крапка вже набрана як тригер
-               item.insertText = cls
+               // Replace from the period to the cursor — .className is inserted
+               item.textEdit = vscode.TextEdit.replace(
+                  new vscode.Range(replaceStart, replaceEnd),
+                  `.${cls}`,
+               )
                item.detail = '⬡ Astro class'
                item.documentation = new vscode.MarkdownString(
-                  `Клас знайдено в \`.astro\` файлах проєкту`,
+                  `The class was found in the \`.astro\` project files`,
                )
-               // Висока пріоритетність в списку
                item.sortText = `0_${cls}`
                return item
             })
@@ -152,13 +156,13 @@ function activate(context) {
 
    context.subscriptions.push(provider)
 
-   // Команда для ручного ресканування
+   // Command for manual rescan
    const rescanCommand = vscode.commands.registerCommand(
       'astro-scss-helper.rescan',
       async () => {
          await scanWorkspace()
          vscode.window.showInformationMessage(
-            `[Astro SCSS Helper] Знайдено ${classIndex.size} класів`,
+            `[Astro SCSS Helper] Found ${classIndex.size} classes`,
          )
       },
    )

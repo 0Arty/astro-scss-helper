@@ -20,13 +20,27 @@ function extractClasses(content) {
    }
 
    // class:list={['foo', 'bar', { baz: true }]}
-   const classListAttr = /class:list\s*=\s*\{([^}]+)\}/g
+   // class:list='foo bar'
+   // class:list="foo bar"
+   const classListAttr = /class:list\s*=\s*(?:\{([^}]+)\}|["'`]([^"'`]+)["'`])/g
    while ((m = classListAttr.exec(content)) !== null) {
-      const inner = m[1]
-      const strings = /['"`]([^'"`\s]+)['"`]/g
-      let s
-      while ((s = strings.exec(inner)) !== null) {
-         s[1] && classes.add(s[1])
+      // m[1] — variant with {}, m[2] — variant with string
+      const inner = m[1] || m[2]
+      if (!inner) continue
+
+      if (m[2]) {
+         // simple sting 'foo bar' — split from space
+         inner
+            .trim()
+            .split(/\s+/)
+            .forEach((c) => c && classes.add(c))
+      } else {
+         // obj or array - every string
+         const strings = /['"`]([^'"`\s]+)['"`]/g
+         let s
+         while ((s = strings.exec(inner)) !== null) {
+            s[1] && classes.add(s[1])
+         }
       }
    }
 
@@ -34,7 +48,6 @@ function extractClasses(content) {
 }
 
 // Updating the index for a single file
-
 async function updateFile(uri) {
    try {
       const content = await fs.promises.readFile(uri.fsPath, 'utf-8')

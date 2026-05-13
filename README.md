@@ -1,1 +1,1 @@
-# vscode-scss-parser-for-astro
+# vscode-scss-parser-for-astros

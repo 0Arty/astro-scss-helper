@@ -1,0 +1,32 @@
+{
+   "name": "astro-scss-helper",
+   "displayName": "Astro SCSS Class Helper",
+   "description": "Підказки CSS-класів з .astro файлів у SCSS",
+   "version": "1.0.2",
+   "engines": {
+      "vscode": "^1.85.0"
+   },
+   "categories": [
+      "Other"
+   ],
+   "activationEvents": [
+      "workspaceContains:**/*.astro"
+   ],
+   "main": "./src/extension.js",
+   "contributes": {
+      "commands": [
+         {
+            "command": "astro-scss-helper.rescan",
+            "title": "Astro SCSS Helper: Rescan classes"
+         }
+      ]
+   },
+   "keywords": [
+      "astro",
+      "scss",
+      "autocomplete",
+      "css",
+      "class"
+   ],
+   "license": "MIT"
+}
